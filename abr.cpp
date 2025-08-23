@@ -74,10 +74,14 @@ int main(int argc, char* argv[])
 	if (find_key("-c9",argc,argv)) png_level=9;
 
 
-	brush_list_t::iterator list_iter;
+	//brush_list_t::iterator list_iter;
+	brush_map_t::iterator map_iter;
+	
 	char *file_name = argv[argc-1];
-	brush_list_t* b_l = brush_load_abr((const char *)file_name);
-	if (!b_l)
+	//brush_list_t* b_l = NULL; // = brush_load_abr((const char *)file_name);
+	brush_map_t* b_m = brush_load_abr((const char *)file_name);
+	
+	if (!b_m)
 		return 1;
 	GimpBrush *gbrush;
 	int data_size;
@@ -87,8 +91,11 @@ int main(int argc, char* argv[])
 	int index=0;
 	char s_index[128]={0};
 
-	for(list_iter = b_l->begin(); list_iter != b_l->end(); list_iter++) {
-		gbrush=*list_iter;
+    printf("BM size is %lu\n", b_m->size());
+	
+	for(map_iter = b_m->begin(); map_iter != b_m->end(); map_iter++) {
+		gbrush=map_iter->second;
+		printf("\tgbrush name=[%s] key=[%s]\n", gbrush->name, gbrush->key.c_str());
 		data_size=gbrush->mask->height*gbrush->mask->width*gbrush->mask->bytes;
 		sprintf(s_index,"%03d",index++);
 
@@ -106,10 +113,10 @@ int main(int argc, char* argv[])
 		}
 
 		if(png) {
-			fname = std::string((char *)file_name)+std::string("_")+std::string(s_index)+std::string(".png");
+			fname = std::string((char *)gbrush->name)+std::string(".png");
 			if (invert)
 				invert_brush(gbrush);
-			bool r = WritePNG(gbrush->mask->width, gbrush->mask->height, gbrush->mask->data, 1, COLOR_GRAY, png_level, fname.c_str());
+			bool r = WritePNG(gbrush->mask->width, gbrush->mask->height, gbrush->mask->data, 4, COLOR_RGBA, png_level, fname.c_str());
 		}
 
 	}

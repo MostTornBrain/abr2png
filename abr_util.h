@@ -2,9 +2,12 @@
 #define __ABR_UTIL_H__
 
 #include <list>
+#include <map>
 #include <stdio.h>
 #include <string.h>
-#include <malloc.h>
+//#include <malloc.h>
+#include <stdlib.h>
+#include <string>
 
 //################################ GIMP + GLib Types ########################################
 #define gint int
@@ -96,7 +99,7 @@ struct _GimpData
   guint         dirty     : 1;
   guint         internal  : 1;
   gint          freeze_count;
-  __time_t      mtime;
+  time_t      mtime;
 };
 
 typedef struct _GimpData             GimpData;
@@ -111,6 +114,9 @@ struct _GimpBrush
   gint          spacing;    /*  brush's spacing                */
   GimpVector2   x_axis;     /*  for calculating brush spacing  */
   GimpVector2   y_axis;     /*  for calculating brush spacing  */
+  
+  std::string   key;
+  gchar *name;
 };
 
 typedef struct _GimpBrush GimpBrush;
@@ -128,6 +134,7 @@ typedef struct _GError GError;
 //######################################################################################################
 
 typedef std::list<GimpBrush*> brush_list_t;
+typedef std::map<std::string, GimpBrush*> brush_map_t;
 
 #define ByteSwap16(n) \
 ( ((((unsigned int) n) << 8) & 0xFF00) | \
@@ -166,23 +173,23 @@ struct _AbrSampledBrushHeader
   bool		wide;
 };
 
-brush_list_t* brush_load_abr(const char *);
+brush_map_t* brush_load_abr(const char *);
 
-static char abr_read_short (FILE *);
-static int abr_read_long (FILE *);
-static char abr_read_char (FILE *);
+ short abr_read_short (FILE *);
+ int abr_read_long (FILE *);
+ char abr_read_char (FILE *);
 
-static bool abr_supported (AbrHeader *);
-static brush_list_t* brush_load_abr_v6 (FILE*, AbrHeader*, const char*, GError**);
-static brush_list_t* brush_load_abr_v12(FILE*, AbrHeader*, const gchar*, GError**);
+ bool abr_supported (AbrHeader *);
+ brush_map_t* brush_load_abr_v6 (FILE*, AbrHeader*, const char*, GError**);
+ brush_map_t* brush_load_abr_v12(FILE*, AbrHeader*, const gchar*, GError**);
 
-static bool abr_reach_8bim_section (FILE*, const char *);
+ bool abr_reach_8bim_section (FILE*, const char *);
 
-static int abr_rle_decode (FILE*, char*, int);
+ int abr_rle_decode (FILE*, char*, int);
 
-static GimpBrush * brush_load_abr_brush_v6 (FILE*, AbrHeader*, gint32, gint, const gchar*, GError **);
-static GimpBrush * brush_load_abr_brush_v12(FILE*, AbrHeader*, gint, const gchar *, GError **);
+ GimpBrush * brush_load_abr_brush_v6 (FILE*, AbrHeader*, gint32, gint, const gchar*, GError **);
+ GimpBrush * brush_load_abr_brush_v12(FILE*, AbrHeader*, gint, const gchar *, GError **);
 
-static gchar * abr_read_ucs2_text (FILE *);
+ gchar * abr_read_ucs2_text (FILE *);
 
 #endif
