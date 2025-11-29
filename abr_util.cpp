@@ -1,12 +1,12 @@
 #include "abr_util.h"
 #include <iostream>
 
-brush_list_t* brush_load_abr(const char *filename)
+brush_map_t* brush_load_abr(const char *filename)
 {
   GError      *error;
   FILE      *file;
   AbrHeader  abr_hdr;
-  brush_list_t *brush_list=0;
+  brush_map_t *brush_map=0;
   file = fopen (filename, "rb");
   abr_hdr.version = abr_read_short (file);
   abr_hdr.count   = abr_read_short (file); /* sub-version for ABR v6 */
@@ -16,28 +16,28 @@ brush_list_t* brush_load_abr(const char *filename)
 	  {
 	  case 1:
 	  case 2:
-		  brush_list = brush_load_abr_v12 (file, &abr_hdr, filename, &error);
+		  brush_map = brush_load_abr_v12 (file, &abr_hdr, filename, &error);
 		  break;
 
 	  case 6:
-		  brush_list = 
+		  brush_map = 
 			  brush_load_abr_v6 (file, &abr_hdr, filename, &error);
 		  break;
 	  }
   }
 
   fclose (file);
-return brush_list;
+return brush_map;
 }
 
-static char 
+ short 
 abr_read_short (FILE *file)
 {
-  char val;
+  short val;
   fread (&val, sizeof (val), 1, file);
   return ByteSwap16(val);
 }
-static int
+ int
 abr_read_long (FILE *file)
 {
   int val;
@@ -47,13 +47,13 @@ abr_read_long (FILE *file)
   return ByteSwap32(val);
 }
 
-static char
+ char
 abr_read_char (FILE *file)
 {
   return fgetc (file);
 }
 
-static bool
+ bool
 abr_supported (AbrHeader *abr_hdr)
 {
   switch (abr_hdr->version)
@@ -70,28 +70,63 @@ abr_supported (AbrHeader *abr_hdr)
     break;
 
     default:
+		  printf("Version is [%d]\n", abr_hdr->version);
 		  std::cerr<<"Brush version "<<abr_hdr->version<<" is not supported."<<std::endl;
     }
 
   return false;
 }
 
+ gchar *
+abr_read_text (FILE *file, int len)
+{
+  gchar *text;
+  gint   i;
+
+  /* two-bytes characters encoded (UCS-2)
+   *  format:
+   *   long : number of characters in string
+   *   data : zero terminated UCS-2 string
+   */
+
+  if (len <= 0)
+    return NULL;
+
+  text = g_new (gchar, len+1); // leave space for null termination
+
+  for (i = 0; i < len; i++){
+    text[i] = abr_read_char (file);
+  }
+  
+  text[i] = 0;
+  
+/*
+  name_utf8 = g_convert (name_ucs2, len,
+                         "UTF-8", "UCS-2BE",
+                         NULL, NULL, NULL);
+*/
+  //HACK
+
+  return text;
+}
+
+
 //static GList * 
-static brush_list_t * brush_load_abr_v6 (FILE *file,
+ brush_map_t * brush_load_abr_v6 (FILE *file,
                    AbrHeader    *abr_hdr,
                    const char  *filename,
                    GError      **error)
 {
 
-	brush_list_t* brush_list=0;
+	brush_map_t* brush_map=0;
   int  sample_section_size;
   int  sample_section_end;
   int    i = 1;
 
   if (! abr_reach_8bim_section (file, "samp"))
-    return brush_list;
+    return brush_map;
 
-  brush_list = new brush_list_t;
+  brush_map = new brush_map_t;
   sample_section_size = abr_read_long (file);
   sample_section_end  = sample_section_size + ftell (file);
 
@@ -109,7 +144,7 @@ static brush_list_t * brush_load_abr_v6 (FILE *file,
 
       if (brush)
         {
-          brush_list->push_back(brush);
+          (*brush_map)[brush->key] = brush;
         }
       else if (my_error)
         {
@@ -121,11 +156,81 @@ static brush_list_t * brush_load_abr_v6 (FILE *file,
       i++;
     }
 
-  return brush_list;
+	printf("i=%d\n", i);
+	
+    if (! abr_reach_8bim_section (file, "desc"))
+      return brush_map;
+	
+	// Parse the desc
+	int descLen = abr_read_long(file);
+	printf("descLen = %d\n", descLen);
+	
+	// skip 26 bytes
+	fseek (file, 26, SEEK_CUR);
+
+	int textLen = 0;
+	char word[256];
+    char isItEs = 0;
+	
+	fscanf(file, " BrshVlL%c", &isItEs);
+	//printf("Is it es? [%c]\n", isItEs);
+	
+	GimpBrush *gbrush;
+	
+	if (isItEs == 's'){
+		//printf("Word: [%s] ", word);
+		//printf("TextLen=%d\n", textLen);
+		int numBrushes = abr_read_long (file);
+		printf("Num brushes: %d\n", numBrushes);
+		
+		while (i > 1) {
+			word[0] = 0;
+			
+			// Skip to the end - useBrushPosebool
+			while (!fscanf(file, " Nm TEX%c", &word[0])) {
+				// Skip 1 char, try again
+				fseek (file, 1, SEEK_CUR);
+			}
+			
+	
+		
+		
+			if (word[0] == 'T'){ 
+				gchar *name = abr_read_ucs2_text (file);
+				//printf("Name is [%s]\n", name);
+				
+			/*	
+				gbrush=*list_iter;
+				gbrush->name = name;
+				
+				(*brush_map)[brush->key] = brush;
+			*/
+				
+				--i;
+
+				// Find the key for matching to the already saved brushes
+				while (!fscanf(file, "sampledDataTEX%c", &word[0])) {
+					// Skip 1 char, try again
+					fseek (file, 1, SEEK_CUR);
+				}					
+				// Read key
+				gchar *key = abr_read_ucs2_text (file);
+				//printf("Key is [%s]\n", key);
+				
+				(*brush_map)[key]->name = name;
+				
+
+			}		
+
+		}
+	}
+	
+  return brush_map;
   
 }
 
-static bool abr_reach_8bim_section (FILE *abr, const char *name)
+
+bool abr_reach_8bim_section (FILE *abr, const char *name)
 {
   char  tag[4];
   char  tagname[5];
@@ -146,7 +251,8 @@ static bool abr_reach_8bim_section (FILE *abr, const char *name)
         return false;
 
       tagname[4] = '\0';
-
+      
+	    printf("Found tag: %s\n", tagname);
       if (! strncmp (tagname, name, 4))
         return true;
 
@@ -160,7 +266,7 @@ static bool abr_reach_8bim_section (FILE *abr, const char *name)
 }
 
 
-static int abr_rle_decode (FILE   *file, char  *buffer, int  height)
+int abr_rle_decode (FILE   *file, char  *buffer, int  height)
 {
   char   ch;
   int    i, j, c;
@@ -214,7 +320,7 @@ static int abr_rle_decode (FILE   *file, char  *buffer, int  height)
 }
 
 
-static GimpBrush *
+GimpBrush *
 brush_load_abr_brush_v6 (FILE *file,
                     AbrHeader *abr_hdr,
                        gint32 max_offset,
@@ -239,6 +345,7 @@ brush_load_abr_brush_v6 (FILE *file,
 
   gchar     *tmp;
   gchar     *name;
+  gchar		*key = "UNKOWN";
   gint       r;
 
   brush_size = abr_read_long (file);
@@ -247,13 +354,20 @@ brush_load_abr_brush_v6 (FILE *file,
   while (brush_end % 4 != 0) brush_end++;
   complement_to_4 = brush_end - brush_size;
   next_brush = ftell (file) + brush_end;
-
-  if (abr_hdr->count == 1)
+  
+  if (abr_hdr->count == 1) {
     /* discard key and short coordinates and unknown short */
     r = fseek (file, 47, SEEK_CUR);
-  else
-    /* discard key and unknown bytes */
-    r = fseek (file, 301, SEEK_CUR);
+  } else {
+	 if (abr_read_char(file) == '$'){
+		 //printf("Got key!\n");
+		 key = abr_read_text(file, 36);
+		 //printf("Key is [%s]\n", key);
+	 }
+    /* discard unknown bytes */
+    r = fseek (file, 264, SEEK_CUR);
+    //printf("Hi mom!\n");	
+  }
 
   if (r == -1)
     {
@@ -275,6 +389,18 @@ brush_load_abr_brush_v6 (FILE *file,
   width  = right - left;
   height = bottom - top;
   size   = width * (depth >> 3) * height;
+
+  /* Only 8-bit (1 byte per sample) brushes are supported for now */
+  {
+    gint bytes = depth >> 3;
+    if (bytes != 1) {
+      std::cerr << "Unsupported brush depth: " << depth
+                << " bits. Only 8-bit brushes are supported. Skipping brush." << std::endl;
+      /* seek to next brush block and return NULL so caller skips this brush */
+      fseek (file, next_brush, SEEK_SET);
+      return NULL;
+    }
+  }
 /*
   tmp = g_filename_display_basename (filename);
   name = g_strdup_printf ("%s-%03d", tmp, index);
@@ -289,7 +415,8 @@ brush_load_abr_brush_v6 (FILE *file,
 brush = new GimpBrush;
 
  // g_free (name);
-
+  brush->key = key;
+  g_free(key);
   brush->spacing  = 25; /* real value needs 8BIMdesc section parser */
   brush->x_axis.x = width / 2.0;
   brush->x_axis.y = 0.0;
@@ -377,13 +504,13 @@ guchar * temp_buf_data (TempBuf *temp_buf)
 }
 
 
-static brush_list_t *
+brush_map_t *
 brush_load_abr_v12 (FILE *file, AbrHeader    *abr_hdr, const gchar  *filename, GError **error)
 {
-  brush_list_t  *brush_list = NULL;
+  brush_map_t  *brush_map = NULL;
   gint   i;
 
-  brush_list = new brush_list_t;
+  brush_map = new brush_map_t;
 
   for (i = 0; i < abr_hdr->count; i++)
     {
@@ -399,8 +526,8 @@ brush_load_abr_v12 (FILE *file, AbrHeader    *abr_hdr, const gchar  *filename, G
 
       if (brush)
         {
-          //brush_list = g_list_prepend (brush_list, brush);
-			brush_list->push_back(brush);
+          //brush_map = g_list_prepend (brush_map, brush);
+			(*brush_map)[brush->key] = brush;
         }
       else if (my_error)
         {
@@ -410,10 +537,10 @@ brush_load_abr_v12 (FILE *file, AbrHeader    *abr_hdr, const gchar  *filename, G
         }
     }
 
-  return brush_list;
+  return brush_map;
 }
 
-static GimpBrush *
+ GimpBrush *
 brush_load_abr_brush_v12 (FILE         *file,
                                AbrHeader    *abr_hdr,
                                gint          index,
@@ -450,6 +577,7 @@ brush_load_abr_brush_v12 (FILE         *file,
     case 2: // sampled brush 
       {
         AbrSampledBrushHeader  abr_sampled_brush_hdr;
+        gint32                 block_end = 0;
         gint                   width, height;
         gint                   bytes;
         gint                   size;
@@ -459,6 +587,9 @@ brush_load_abr_brush_v12 (FILE         *file,
         gchar                 *sample_name = NULL;
         gchar                 *tmp;
         gshort                 compress;
+
+        /* compute end of this brush block so we can skip it if unsupported */
+        block_end = ftell(file) + abr_brush_hdr.size;
 
         abr_sampled_brush_hdr.misc    = abr_read_long (file);
         abr_sampled_brush_hdr.spacing = abr_read_short (file);
@@ -481,6 +612,15 @@ brush_load_abr_brush_v12 (FILE         *file,
         width  = (abr_sampled_brush_hdr.bounds_long[3] -
                   abr_sampled_brush_hdr.bounds_long[1]); // right - left 
         bytes  = abr_sampled_brush_hdr.depth >> 3;
+
+        /* Only 8-bit (1 byte per sample) brushes are supported for now */
+        if (bytes != 1) {
+          std::cerr << "Unsupported brush depth: " << abr_sampled_brush_hdr.depth
+                    << " bits. Only 8-bit brushes are supported. Skipping brush." << std::endl;
+          /* skip to the end of this brush block so parsing can continue */
+          fseek(file, block_end, SEEK_SET);
+          return NULL;
+        }
 
         // g_print("width %i  height %i\n", width, height);
 
@@ -521,7 +661,7 @@ brush_load_abr_brush_v12 (FILE         *file,
 
         g_free (name);
 */
-		if (sample_name)//заглушка из g_convert
+		if (sample_name)//пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ g_convert
 			g_free (sample_name);
 
 		brush = new GimpBrush;
@@ -558,7 +698,7 @@ brush_load_abr_brush_v12 (FILE         *file,
   return brush;
 }
 
-static gchar *
+ gchar *
 abr_read_ucs2_text (FILE *file)
 {
   gchar *name_ucs2;
@@ -572,24 +712,22 @@ abr_read_ucs2_text (FILE *file)
    *   data : zero terminated UCS-2 string
    */
 
-  len = 2 * abr_read_long (file);
+  len = abr_read_long (file);
   if (len <= 0)
     return NULL;
 
   name_ucs2 = g_new (gchar, len);
 
-  for (i = 0; i < len; i++)
+  for (i = 0; i < len; i++){
+  	abr_read_char (file);
     name_ucs2[i] = abr_read_char (file);
+  }
 /*
   name_utf8 = g_convert (name_ucs2, len,
                          "UTF-8", "UCS-2BE",
                          NULL, NULL, NULL);
 */
   //HACK
- name_utf8 = g_new (gchar, len);
- memcpy(name_utf8,name_ucs2,len);
 
-  g_free (name_ucs2);
-
-  return name_utf8;
+  return name_ucs2;
 }

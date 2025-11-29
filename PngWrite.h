@@ -8,7 +8,9 @@ enum colorType_e
 {
 	COLOR_GRAY,
 	COLOR_RGB,
-	COLOR_RGBA
+	COLOR_RGBA,
+	VARICOLOR_BASE,
+	VARICOLOR_MASK
 };
 
 bool WritePNG(int, int , unsigned char* , int , colorType_e , int , const char* );
