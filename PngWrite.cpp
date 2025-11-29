@@ -112,8 +112,8 @@ bool WritePNG(int m_width, int m_height, unsigned char* m_pData, int m_bytesPerP
         break;
 
       case VARICOLOR_BASE:
-        // Make the base color shifted to a lighted hue so when the 
-        // mask in CC3+ is applied the color doesn't get muddied.
+        // Make the base color shifted to a lighter hue so when the 
+        // mask in CC3+ is applied the color doesn't get too dark and muddied.
         rgbImgData[pixel*4]     = shifted;     // red
         rgbImgData[pixel*4 + 1] = shifted;     // green
         rgbImgData[pixel*4 + 2] = shifted;     // blue
