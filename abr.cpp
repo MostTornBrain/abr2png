@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
 			<<"    abr2png - Photoshop Brush converter"<<endl
 			<<endl
 			<<"Version:"<<endl
-			<<"    abr2png v2.0.1 (29-nov-2025)"<<endl
+			<<"    abr2png v2.0.2 (29-nov-2025)"<<endl
 			<<endl
 			<<"Description:"<<endl
 			<<"    abr2png - tool to convert from Photoshop Brush (.abr) and"<<endl
