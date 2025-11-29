@@ -38,7 +38,7 @@ $(TARGET_LINUX): $(OBJS)
 
 # Rule to link the Windows executable
 $(TARGET_WIN): $(OBJS_WIN)
-	$(CC_WIN) $(CFLAGS_OPT) $^ -o $@ $(LIBS)
+	$(CC_WIN) $(CFLAGS_OPT) $^ -o $@ -static -static-libgcc -static-libstdc++ -Wl,-Bstatic -lpng -lz -lwinpthread
 	@echo "--- Windows build complete: $(TARGET_WIN) ---"
 
 # Generic rule for Linux object files (.o)
