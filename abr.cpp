@@ -88,7 +88,7 @@ int main(int argc, char* argv[])
 			<<"                             -c1 - best speed"<<endl
 			<<"                             -c9 - best compression (default)"<<endl
 			<<endl
-			<<"Copyright (c) 2008, D.Gar'kaev aka Dickobraz (dickobraz@mail.ru)"<<endl;
+			<<"Copyright (c) 2008, D.Gar'kaev aka Dickobraz (dickobraz@mail.ru)"<<endl
 			<<"Modifications in 2025 by Brian Stormont (https://github.com/MostTornBrain/abr2png)"<<endl;
 		return 1;
 	}
