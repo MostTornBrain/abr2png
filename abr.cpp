@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
 			<<"    abr2png - Photoshop Brush converter"<<endl
 			<<endl
 			<<"Version:"<<endl
-			<<"    abr2png v.2.0 (23-oct-2008)"<<endl
+			<<"    abr2png v2.0.1 (29-nov-2025)"<<endl
 			<<endl
 			<<"Description:"<<endl
 			<<"    abr2png - tool to convert from Photoshop Brush (.abr) and"<<endl
@@ -89,7 +89,7 @@ int main(int argc, char* argv[])
 			<<"                             -c9 - best compression (default)"<<endl
 			<<endl
 			<<"Copyright (c) 2008, D.Gar'kaev aka Dickobraz (dickobraz@mail.ru)"<<endl;
-
+			<<"Modifications in 2025 by Brian Stormont (https://github.com/MostTornBrain/abr2png)"<<endl;
 		return 1;
 	}
 
