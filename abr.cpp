@@ -14,6 +14,9 @@ using namespace std;
 bool invert    = false;  // -i
 bool png       = false;  // -png
 bool pgm       = false;  // -pgm
+bool wonder    = false;  // -wonder
+bool cc3       = false;  // -cc3
+
 int  png_level = 9;      // zlib compression level
 
 bool find_key(string key,int argc, char* argv[]);
@@ -80,7 +83,9 @@ int main(int argc, char* argv[])
 			<<endl
 			<<"Options:"<<endl
 			<<"    -i    invert image"<<endl
-			<<"    -png  output to png file format (default)"<<endl
+			<<"    -png  output to PNG file format"<<endl
+			<<"    -cc3  output to Campaign Cartographer varicolor raster PNG (default)"<<endl
+			<<"    -wonder  output to Wonderdraft sprite PNG"<<endl
 			<<"    -pgm  output to pgm file format"<<endl
 			<<"    -c0"<<endl
 			<<"    ..."<<endl
@@ -96,7 +101,14 @@ int main(int argc, char* argv[])
 	invert = find_key("-i", argc,argv);
 	png = find_key("-png", argc,argv);
 	pgm = find_key("-pgm", argc,argv);
-	if (png == false && pgm == false) png = true;
+	wonder = find_key("-wonder", argc,argv);
+	cc3 = find_key("-cc3", argc,argv);
+	if (png == false && pgm == false && wonder == false && cc3 == false) cc3 = true;
+	// Make sure only one of png, pgm, wonder, cc3 is selected
+	if (png + pgm + wonder + cc3 > 1) {
+		cerr << "Error: Only one of -png, -pgm, -wonder, or -cc3 options can be specified." << endl;
+		return 1;
+	}
 	if (find_key("-c0",argc,argv)) png_level=0;
 	if (find_key("-c1",argc,argv)) png_level=1;
 	if (find_key("-c2",argc,argv)) png_level=2;
@@ -149,7 +161,7 @@ int main(int argc, char* argv[])
 			}
 		}
 
-		if(png) {
+		if(png || cc3 || wonder) {
 			if (invert)
 				invert_brush(gbrush);
 
@@ -158,21 +170,30 @@ int main(int argc, char* argv[])
 			std::string fallback = std::string("brush_") + std::string(s_index);
 			std::string safe = sanitize_filename(raw_name, fallback);
 
-			// Save 2 varicolor images: base and mask
-			fname = safe + " vari_01" + std::string(".png");
-			bool r = WritePNG(gbrush->mask->width, gbrush->mask->height, gbrush->mask->data, 4, VARICOLOR_BASE, png_level, fname.c_str());
+			bool r = false;
+			if (wonder) {
+				// Save Wonderdraft symbol PNG
+				fname = safe + std::string(".png");
+				r = WritePNG(gbrush->mask->width, gbrush->mask->height, gbrush->mask->data, 4, WONDERDRAFT_SYMBOL, png_level, fname.c_str());
+			} else if (cc3) {
+				// Save 2 varicolor images: base and mask
+				fname = safe + " vari_01" + std::string(".png");
+				r = WritePNG(gbrush->mask->width, gbrush->mask->height, gbrush->mask->data, 4, VARICOLOR_BASE, png_level, fname.c_str());
+				if (!r) {
+					std::cerr << "Failed to write PNG file '" << fname << "'" << std::endl;
+				}
+
+				fname = safe + " vari_02" + std::string(".png");
+				r = WritePNG(gbrush->mask->width, gbrush->mask->height, gbrush->mask->data, 4, VARICOLOR_MASK, png_level, fname.c_str());
+			} else {
+				// Save standard PNG
+				fname = safe + std::string(".png");
+				r = WritePNG(gbrush->mask->width, gbrush->mask->height, gbrush->mask->data, 4, COLOR_RGBA, png_level, fname.c_str());
+			}
 			if (!r) {
 				std::cerr << "Failed to write PNG file '" << fname << "'" << std::endl;
 			}
-
-			fname = safe + " vari_02" + std::string(".png");
-			r = WritePNG(gbrush->mask->width, gbrush->mask->height, gbrush->mask->data, 4, VARICOLOR_MASK, png_level, fname.c_str());
-			if (!r) {
-				std::cerr << "Failed to write PNG file '" << fname << "'" << std::endl;
-			}
-
 		}
-
 	}
 
 	return 0;

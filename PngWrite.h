@@ -10,7 +10,8 @@ enum colorType_e
 	COLOR_RGB,
 	COLOR_RGBA,
 	VARICOLOR_BASE,
-	VARICOLOR_MASK
+	VARICOLOR_MASK,
+	WONDERDRAFT_SYMBOL
 };
 
 bool WritePNG(int, int , unsigned char* , int , colorType_e , int , const char* );

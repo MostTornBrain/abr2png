@@ -25,3 +25,4 @@ abr2png
 *.o_win
 *.exe
 *.swp
+*.json

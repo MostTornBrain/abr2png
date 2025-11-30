@@ -1,6 +1,7 @@
 #include "PngWrite.h"
 #include "png.h"
 #include <stdlib.h>
+#include <iostream>
 
 bool WritePNG(int m_width, int m_height, unsigned char* m_pData, int m_bytesPerPixel, colorType_e m_colorType, int m_clevel, const char* in_sName)
 {
@@ -55,33 +56,25 @@ bool WritePNG(int m_width, int m_height, unsigned char* m_pData, int m_bytesPerP
   case COLOR_RGBA:
   case VARICOLOR_BASE:
   case VARICOLOR_MASK:
+  case WONDERDRAFT_SYMBOL:
     bitDepthPerChannel = (m_bytesPerPixel/4)*8; 
     colorType = PNG_COLOR_TYPE_RGB_ALPHA;
     break;
   
   // Unknown color type - bail out
   default:
+    // Report error
+    std::cerr << "Unknown color type " << m_colorType << " specified for PNG writing." << std::endl;
+    fclose(pFile);
     png_destroy_write_struct(&pPng, &pPngInfo);
     return false;
   }
 
-
   png_set_IHDR(pPng, pPngInfo, (ULONG)m_width, (ULONG)m_height,
                bitDepthPerChannel, colorType, PNG_INTERLACE_NONE,
                PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
-
 			   
   png_write_info(pPng, pPngInfo);
-  
-  /*
-  png_color_16 background_color;
-  png_set_background(pPng, &background_color,
-     PNG_BACKGROUND_GAMMA_SCREEN, 0, 1);
-
- // png_set_tRNS_to_alpha(pPng);
-  png_set_strip_alpha(pPng);
-  */
-  
   
   if(bitDepthPerChannel == 16) //reverse endian order (PNG is Big Endien)
     png_set_swap(pPng);
@@ -120,17 +113,25 @@ bool WritePNG(int m_width, int m_height, unsigned char* m_pData, int m_bytesPerP
         rgbImgData[pixel*4 + 3] = pImgData[pixel]; // alpha
         break;
 
+      case WONDERDRAFT_SYMBOL:
+        // Wonderdraft symbols use red channel for symbol custom coloring, alpha for transparency
+      	rgbImgData[pixel*4]   = pImgData[pixel];   // red
+	  	  rgbImgData[pixel*4 + 1] = 0;  // green
+	  	  rgbImgData[pixel*4 + 2] = 0;  // blue
+			  rgbImgData[pixel*4 + 3] = pImgData[pixel]; // alpha
+        break;
+
       case COLOR_RGBA:
-	  	  rgbImgData[pixel*4]     = pImgData[pixel*4];     // red
-        rgbImgData[pixel*4 + 1] = pImgData[pixel*4 + 1]; // green
-        rgbImgData[pixel*4 + 2] = pImgData[pixel*4 + 2]; // blue
-        rgbImgData[pixel*4 + 3] = pImgData[pixel*4 + 3]; // alpha
+	  	  rgbImgData[pixel*4]     = 255 - pImgData[pixel]; // red
+        rgbImgData[pixel*4 + 1] = 255 - pImgData[pixel]; // green
+        rgbImgData[pixel*4 + 2] = 255 - pImgData[pixel]; // blue
+        rgbImgData[pixel*4 + 3] = pImgData[pixel]; // alpha
         break;
 
       case COLOR_RGB:
-        rgbImgData[pixel*3]     = pImgData[pixel*3];     // red
-        rgbImgData[pixel*3 + 1] = pImgData[pixel*3 + 1]; // green
-        rgbImgData[pixel*3 + 2] = pImgData[pixel*3 + 2]; // blue
+        rgbImgData[pixel*3]     = pImgData[pixel];     // red
+        rgbImgData[pixel*3 + 1] = pImgData[pixel]; // green
+        rgbImgData[pixel*3 + 2] = pImgData[pixel]; // blue
         break;
 
       case COLOR_GRAY:
