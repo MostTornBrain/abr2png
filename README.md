@@ -13,6 +13,6 @@ Modified slightly to support different export methods:
 2) On the command line, run `abr2png.exe -cc3 brushfilename.abr`
 3) All the PNGs will be extracted into the current directory.
 
-#Credits
+# Credits
 Unix fork of [abr2pgm](https://code.google.com/p/abr2pgm/)
 
